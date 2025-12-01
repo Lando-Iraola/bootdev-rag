@@ -143,5 +143,22 @@ class InvertedIndex:
             count += 1
         if count == 0:
             return 0.0
-        print("avg:", lengths / count)
         return lengths / count
+
+    def bm25(self, doc_id, term):
+        return self.get_bm25_idf(term) * self.get_bm25_tf(doc_id, term)
+
+    def bm25_search(self, query, limit):
+        tokens = self.__tokenize(query)
+        scores = {}
+        for token in tokens:
+            if token not in self.index:
+                continue
+            for doc in self.index[token]:
+                if doc not in scores:
+                    scores[doc] = 0
+                scores[doc] += self.bm25(doc, token)
+        movies = sorted(scores.items(), key=lambda movie: movie[1], reverse=True)[
+            :limit
+        ]
+        return movies
