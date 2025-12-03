@@ -60,7 +60,7 @@ class SemanticSearch:
             )
         similarity.sort(key=lambda item: item[0], reverse=True)
         docs = []
-        for index in range(min(limit, len(similarity)):
+        for index in range(min(limit, len(similarity))):
             docs.append(
                 {
                     "score": similarity[index][0],
@@ -72,26 +72,26 @@ class SemanticSearch:
 
 
 def verify_model():
-    ss=SemanticSearch()
+    ss = SemanticSearch()
     print(f"Model loaded: {ss.model}")
     print(f"Max sequence length: {ss.model.max_seq_length}")
 
 
 def embed_text(text):
-    ss=SemanticSearch()
-    embedding=ss.generate_embedding(text)
+    ss = SemanticSearch()
+    embedding = ss.generate_embedding(text)
     print(f"Text: {text}")
     print(f"First 3 dimensions: {embedding[:3]}")
     print(f"Dimensions: {embedding.shape[0]}")
 
 
 def verify_embeddings():
-    ss=SemanticSearch()
+    ss = SemanticSearch()
     with open(
         "./data/movies.json",
         "r",
     ) as movies:
-        data_set=json.load(movies)
+        data_set = json.load(movies)
     ss.load_or_create_embeddings(data_set["movies"])
     print(f"Number of docs:   {len(data_set['movies'])}")
     print(
@@ -102,9 +102,9 @@ def verify_embeddings():
 
 
 def cosine_similarity(vec1, vec2):
-    dot_product=np.dot(vec1, vec2)
-    norm1=np.linalg.norm(vec1)
-    norm2=np.linalg.norm(vec2)
+    dot_product = np.dot(vec1, vec2)
+    norm1 = np.linalg.norm(vec1)
+    norm2 = np.linalg.norm(vec2)
 
     if norm1 == 0 or norm2 == 0:
         return 0.0
