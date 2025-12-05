@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import re
 
 from lib import semantic_search
 
@@ -37,6 +38,19 @@ def main():
     )
 
     chunk_parser.add_argument(
+        "--overlap", type=int, default=0, help="Size limit for chunks"
+    )
+
+    semantic_chunk_parser = subparsers.add_parser(
+        "semantic_chunk", help="Splits text into semantic chunks"
+    )
+    semantic_chunk_parser.add_argument("text", type=str, help="Text to chunk")
+
+    semantic_chunk_parser.add_argument(
+        "--max-chunk-size", type=int, default=4, help="Size limit for chunks"
+    )
+
+    semantic_chunk_parser.add_argument(
         "--overlap", type=int, default=0, help="Size limit for chunks"
     )
     args = parser.parse_args()
@@ -100,6 +114,38 @@ def main():
             print(f"Chunking {len(args.text)} characters")
             for i, chunk in enumerate(chunks):
                 print(f"{i + 1}. {chunk}")
+        case "semantic_chunk":
+            split = re.split(r"(?<=[.!?])\s+", args.text)
+            chunks = []
+            sentences = None
+            counter = 0
+            while counter < len(split):
+                if args.overlap != 0 and counter != 0 and len(chunks) != 0:
+                    overlap = " ".join(
+                        re.split(r"(?<=[.!?])\s+", chunks[-1:][0])[
+                            (args.overlap * -1) :
+                        ]
+                    )
+                    if sentences is not None:
+                        sentences = f"{overlap} {sentences} {split[counter]}"
+                    else:
+                        sentences = f"{overlap} {split[counter]}"
+                else:
+                    if sentences is not None:
+                        sentences = f"{sentences} {split[counter]}"
+                    else:
+                        sentences = split[counter]
+                s_count = len(re.split(r"(?<=[.!?])\s+", sentences))
+                if (
+                    counter != 0 and s_count % args.max_chunk_size == 0
+                ) or counter >= len(split) - 1:
+                    chunks.append(sentences)
+                    sentences = None
+                counter += 1
+
+            print(f"Semantically chunking {len(args.text)} characters")
+            for i, v in enumerate(chunks):
+                print(f"{i + 1}. {v}")
         case _:
             parser.print_help()
 
