@@ -75,9 +75,16 @@ def main() -> None:
         default=0,
         help="Number of sentences to overlap between chunks",
     )
-    
+
     embed_chunks_parser = subparsers.add_parser(
         "embed_chunks", help="Creates text embeddings to be used for search"
+    )
+
+    search_chunked = subparsers.add_parser("search_chunked", help="Searches chunked data")
+
+    search_chunked.add_argument("query", type=str, help="Text to chunk")
+    search_chunked.add_argument(
+        "--limit", type=int, default=5, help="Number of results to return"
     )
 
     args = parser.parse_args()
@@ -102,6 +109,14 @@ def main() -> None:
             movies = load_movies()
             css.load_or_create_chunk_embeddings(movies)
             print(f"Generated {len(css.chunk_embeddings)} chunked embeddings")
+        case "search_chunked":
+            css = ChunkedSemanticSearch()
+            movies = load_movies()
+            css.load_or_create_chunk_embeddings(movies)
+            results = css.search_chunks(args.query, args.limit)
+            for i, result in enumerate(results):
+                print(f"\n{i + 1}. {result['title']} (score: {result['score']:.4f})")
+                print(f"   {result['document']}...")
         case _:
             parser.print_help()
 

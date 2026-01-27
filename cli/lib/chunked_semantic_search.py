@@ -1,4 +1,4 @@
-from .semantic_search import SemanticSearch, semantic_chunk
+from .semantic_search import SemanticSearch, semantic_chunk, cosine_similarity
 import os
 import numpy as np
 import json
@@ -9,6 +9,7 @@ from .search_utils import (
     DEFAULT_SEARCH_LIMIT,
     DEFAULT_SEMANTIC_CHUNK_SIZE,
     load_movies,
+    format_chunked_search_result,
 )
 
 
@@ -27,15 +28,22 @@ class ChunkedSemanticSearch(SemanticSearch):
         self.document_map = {}
         all_chunks = []
         chunk_metadata = []
-        for doc in documents:
-            if not doc["description"]:
+        for index, doc in enumerate(documents):
+            text = doc.get("description", "")
+            if not text.strip():
                 continue
-            chunks = semantic_chunk(doc["description"])
-            all_chunks.extend(chunks)
-            for chunk in chunks:
+
+            chunks = semantic_chunk(
+                text,
+                max_chunk_size=DEFAULT_SEMANTIC_CHUNK_SIZE,
+                overlap=DEFAULT_CHUNK_OVERLAP,
+            )
+
+            for c_index, chunk in enumerate(chunks):
+                all_chunks.append(chunk)
                 these_chunks = {
-                    "movie_idx": doc["id"],
-                    "chunk_idx": chunks.index(chunk),
+                    "movie_idx": index,
+                    "chunk_idx": c_index,
                     "total_chunks": len(chunks),
                 }
                 chunk_metadata.append(these_chunks)
@@ -70,3 +78,39 @@ class ChunkedSemanticSearch(SemanticSearch):
             return self.chunk_embeddings
 
         return self.build_chunks_embeddings(documents)
+
+    def search_chunks(self, query: str, limit: int = 10):
+        if not query:
+            return
+
+        embeddings = self.generate_embedding(query)
+        chunk_score = []
+        for index, chunk in enumerate(self.chunk_embeddings):
+            score = cosine_similarity(chunk, embeddings)
+            chunk_score.append(
+                {
+                    "chunk_idx": index,
+                    "movie_idx": self.chunk_metadata['chunks'][index]['movie_idx'],
+                    "score": score,
+                }
+            )
+
+        movie_score = {}
+        for c_score in chunk_score:
+            if (
+                c_score["movie_idx"] not in movie_score
+                or c_score["score"] > movie_score[c_score["movie_idx"]]["score"]
+            ):
+                movie_score[c_score["movie_idx"]] = c_score
+        sorted_scores = sorted(movie_score.items(), key=lambda x: x[1]['score'], reverse=True)
+        sorted_scores = sorted_scores[:limit]
+        results = []
+        for doc in sorted_scores:
+            formatted_result = format_chunked_search_result(
+                doc_id=self.documents[doc[1]['movie_idx']]["id"],
+                title=self.documents[doc[1]['movie_idx']]["title"],
+                document=self.documents[doc[1]['movie_idx']]["description"],
+                score=doc[1]['score'],
+            )
+            results.append(formatted_result)
+        return results
