@@ -12,6 +12,10 @@ from lib.semantic_search import (
     verify_model,
 )
 
+from lib.search_utils import load_movies
+
+from lib.chunked_semantic_search import ChunkedSemanticSearch
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Semantic Search CLI")
@@ -71,6 +75,10 @@ def main() -> None:
         default=0,
         help="Number of sentences to overlap between chunks",
     )
+    
+    embed_chunks_parser = subparsers.add_parser(
+        "embed_chunks", help="Creates text embeddings to be used for search"
+    )
 
     args = parser.parse_args()
 
@@ -89,6 +97,11 @@ def main() -> None:
             chunk_text(args.text, args.chunk_size, args.overlap)
         case "semantic_chunk":
             semantic_chunk_text(args.text, args.max_chunk_size, args.overlap)
+        case "embed_chunks":
+            css = ChunkedSemanticSearch()
+            movies = load_movies()
+            css.load_or_create_chunk_embeddings(movies)
+            print(f"Generated {len(css.chunk_embeddings)} chunked embeddings")
         case _:
             parser.print_help()
 
