@@ -49,7 +49,31 @@ class HybridSearch:
         return sorted_scores
 
     def rrf_search(self, query, k, limit=10):
-        raise NotImplementedError("RRF hybrid search is not implemented yet.")
+        bm25_results = self._bm25_search(query, limit * 500)
+        semantic_results = self.semantic_search.search_chunks(query, limit * 500)
+
+        rrf = {}
+        for index, bm25 in enumerate(bm25_results):
+            if bm25["id"] not in rrf:
+                rrf[bm25["id"]] = bm25.copy()
+                del rrf[bm25["id"]]["score"]
+                rrf[bm25["id"]]["semantic"] = 0
+                rrf[bm25["id"]]["bm25"] = bm25["score"]
+                rrf[bm25["id"]]["rank"] = rrf_score(index, k)
+
+        for index, semantic in enumerate(semantic_results):
+            if semantic["id"] in rrf:
+                rrf[semantic["id"]]["rank"] += rrf_score(index, k)
+            else:
+                rrf[semantic["id"]] = semantic.copy()
+                del rrf[semantic["id"]]["score"]
+                if 'bm25' not in rrf[semantic["id"]]:
+                    rrf[semantic["id"]]['bm25'] = 0
+                rrf[semantic["id"]]["semantic"] = semantic["score"]
+                rrf[semantic["id"]]["rank"] = rrf_score(index, k)
+
+        sorted_scores = sorted(rrf.items(), key=lambda x: x[1]["rank"], reverse=True)
+        return sorted_scores
 
 
 def normalize(list):
@@ -72,3 +96,7 @@ def normalize(list):
 
 def hybrid_score(bm25_score, semantic_score, alpha=0.5):
     return alpha * bm25_score + (1 - alpha) * semantic_score
+
+
+def rrf_score(rank, k=60):
+    return 1 / (k + rank)

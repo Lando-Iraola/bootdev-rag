@@ -24,6 +24,12 @@ def main() -> None:
     )
     weighted_search_parser.add_argument("--limit", type=int, default=5, help="Limit")
 
+    rrf_search_parser = subparser.add_parser(
+        "rrf-search", help="Ranks results"
+    )
+    rrf_search_parser.add_argument("query", type=str, help="Query")
+    rrf_search_parser.add_argument("--k", type=int, default=60, help="Weight")
+    rrf_search_parser.add_argument("--limit", type=int, default=5, help="Limit")
     args = parser.parse_args()
 
     match args.command:
@@ -43,7 +49,18 @@ def main() -> None:
                     f"BM25: {result[1]['bm25']:.4f}, Semantic: {result[1]['semantic']:.4f}"
                 )
                 print(result[1]["document"][:100])
+        case "rrf-search":
+            hs = HybridSearch(load_movies())
+            results = hs.rrf_search(args.query, args.k, args.limit)
+            results = results[:args.limit]
 
+            for index, result in enumerate(results):
+                print(f"{index + 1} {result[1]['title']}")
+                print(f"RRF score: {result[1]['rank']:.4f}")
+                print(
+                    f"BM25: {result[1]['bm25']:.4f}, Semantic: {result[1]['semantic']:.4f}"
+                )
+                print(result[1]["document"][:100])
         case _:
             parser.print_help()
 
