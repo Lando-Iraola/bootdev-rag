@@ -1,9 +1,10 @@
 import argparse
-from lib.hybrid_search import HybridSearch, normalize
+from lib.hybrid_search import HybridSearch, normalize, rrf_search_command
 from lib.search_utils import load_movies
 import os
 from dotenv import load_dotenv
 from google import genai
+import time
 
 
 def main() -> None:
@@ -37,6 +38,12 @@ def main() -> None:
         choices=["spell", "rewrite", "expand"],
         help="Query enhancement method",
     )
+    rrf_search_parser.add_argument(
+        "--rerank-method",
+        type=str,
+        choices=["individual"],
+        help="Query reranking method",
+    )
     args = parser.parse_args()
 
     match args.command:
@@ -57,75 +64,41 @@ def main() -> None:
                 )
                 print(result[1]["document"][:100])
         case "rrf-search":
-            hs = HybridSearch(load_movies())
-            if args.enhance:
-                load_dotenv()
-                api_key = os.environ.get("GEMINI_API_KEY")
-                client = genai.Client(api_key=api_key)
-                prompt = ""
-                match args.enhance:
-                    case "spell":
-                        prompt = f"""Fix any spelling errors in this movie search query.
+            result = rrf_search_command(
+                args.query, args.k, args.enhance, args.rerank_method, args.limit
+            )
 
-Only correct obvious typos. Don't change correctly spelled words.
-
-Query: "{args.query}"
-
-If no errors, return the original query.
-Corrected:"""
-                    case "rewrite":
-                        prompt = f"""Rewrite this movie search query to be more specific and searchable.
-
-Original: "{args.query}"
-
-Consider:
-- Common movie knowledge (famous actors, popular films)
-- Genre conventions (horror = scary, animation = cartoon)
-- Keep it concise (under 10 words)
-- It should be a google style search query that's very specific
-- Don't use boolean logic
-
-Examples:
-
-- "that bear movie where leo gets attacked" -> "The Revenant Leonardo DiCaprio bear attack"
-- "movie about bear in london with marmalade" -> "Paddington London marmalade"
-- "scary movie with bear from few years ago" -> "bear horror movie 2015-2020"
-
-Rewritten query:"""
-                    case "expand":
-                        prompt = f"""Expand this movie search query with related terms.
-
-Add synonyms and related concepts that might appear in movie descriptions.
-Keep expansions relevant and focused.
-This will be appended to the original query.
-
-Examples:
-
-- "scary bear movie" -> "scary horror grizzly bear movie terrifying film"
-- "action movie with bear" -> "action thriller bear chase fight adventure"
-- "comedy with bear" -> "comedy funny bear humor lighthearted"
-
-Query: "{args.query}"
-"""
-                response = client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=prompt,
-                )
-
+            if result["enhanced_query"]:
                 print(
-                    f"Enhanced query ({args.enhance}): '{args.query}' -> '{response.text}'\n"
+                    f"Enhanced query ({result['enhance_method']}): '{result['original_query']}' -> '{result['enhanced_query']}'\n"
                 )
-                args.query = response.text
-            results = hs.rrf_search(args.query, args.k, args.limit)
-            results = results[: args.limit]
 
-            for index, result in enumerate(results):
-                print(f"{index + 1} {result[1]['title']}")
-                print(f"RRF score: {result[1]['rank']:.4f}")
+            if result["reranked"]:
                 print(
-                    f"BM25: {result[1]['bm25']:.4f}, Semantic: {result[1]['semantic']:.4f}"
+                    f"Reranking top {len(result['results'])} results using {result['rerank_method']} method...\n"
                 )
-                print(result[1]["document"][:100])
+
+            print(
+                f"Reciprocal Rank Fusion Results for '{result['query']}' (k={result['k']}):"
+            )
+
+            for i, res in enumerate(result["results"], 1):
+                print(f"{i}. {res['title']}")
+                if "individual_score" in res:
+                    print(f"   Rerank Score: {res.get('individual_score', 0):.3f}/10")
+                if "batch_rank" in res:
+                    print(f"   Rerank Rank: {res.get('batch_rank', 0)}")
+                print(f"   RRF Score: {res.get('score', 0):.3f}")
+                metadata = res.get("metadata", {})
+                ranks = []
+                if metadata.get("bm25_rank"):
+                    ranks.append(f"BM25 Rank: {metadata['bm25_rank']}")
+                if metadata.get("semantic_rank"):
+                    ranks.append(f"Semantic Rank: {metadata['semantic_rank']}")
+                if ranks:
+                    print(f"   {', '.join(ranks)}")
+                print(f"   {res['document'][:100]}...")
+                print()
         case _:
             parser.print_help()
 
