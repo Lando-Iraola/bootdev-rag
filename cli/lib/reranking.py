@@ -1,4 +1,5 @@
 import os
+import json
 from time import sleep
 
 from dotenv import load_dotenv
@@ -41,10 +42,52 @@ Score:"""
     return scored_docs[:limit]
 
 
+def llm_rerank_batch(query: str, documents: list[dict], limit: int = 5) -> list[dict]:
+    doc_list_str = ""
+    for doc in documents:
+        doc_list_str += f"ID: {doc.get('id')},TITLE: {doc.get('title')}, DESCRIPTION: {doc.get('document')}\n"
+    prompt = f"""Rank these movies by relevance to the search query.
+
+Query: "{query}"
+
+Movies:
+{doc_list_str}
+
+Return ONLY the IDs in order of relevance (best match first). Return a valid JSON list, nothing else. For example:
+
+[75, 12, 34, 2, 1]
+"""
+    response = client.models.generate_content(model=model, contents=prompt)
+    ranking = response.text.strip()
+    if "json" in ranking.lower():
+        ranking = ranking.lower().replace("json", "")
+    if "`" in ranking:
+        ranking = ranking.replace("`", "")
+    if "\n" in ranking:
+        ranking = ranking.replace("\n", "")
+    if " " in ranking:
+        ranking = ranking.replace(" ", "")
+    
+    ranking = ranking.strip()
+    
+    ranking = json.loads(ranking)
+
+    scored_docs = []
+    for index, id in enumerate(ranking, 1):
+        for doc in documents:
+            if doc.get("id") == id:
+                doc['batch_score'] = index
+                scored_docs.append(doc)
+    return scored_docs[:limit]
+
+
 def rerank(
     query: str, documents: list[dict], method: str = "batch", limit: int = 5
 ) -> list[dict]:
-    if method == "individual":
-        return llm_rerank_individual(query, documents, limit)
-    else:
-        return documents[:limit]
+    match method:
+        case "individual":
+            return llm_rerank_individual(query, documents, limit)
+        case "batch":
+            return llm_rerank_batch(query, documents, limit)
+        case _:
+            return documents[:limit]

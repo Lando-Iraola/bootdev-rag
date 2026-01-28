@@ -41,7 +41,7 @@ def main() -> None:
     rrf_search_parser.add_argument(
         "--rerank-method",
         type=str,
-        choices=["individual"],
+        choices=["individual", "batch"],
         help="Query reranking method",
     )
     args = parser.parse_args()
@@ -86,6 +86,8 @@ def main() -> None:
                 print(f"{i}. {res['title']}")
                 if "individual_score" in res:
                     print(f"   Rerank Score: {res.get('individual_score', 0):.3f}/10")
+                if "batch_score" in res:
+                    print(f"   Rerank Rank: {res.get('batch_score')}")
                 if "batch_rank" in res:
                     print(f"   Rerank Rank: {res.get('batch_rank', 0)}")
                 print(f"   RRF Score: {res.get('score', 0):.3f}")
