@@ -45,7 +45,7 @@ Score:"""
 def llm_rerank_batch(query: str, documents: list[dict], limit: int = 5) -> list[dict]:
     doc_list_str = ""
     for doc in documents:
-        doc_list_str += f"ID: {doc.get('id')},TITLE: {doc.get('title')}, DESCRIPTION: {doc.get('document')}\n"
+        doc_list_str += f"ID: {doc.get('id')},TITLE: {doc.get('title')}, DESCRIPTION: {doc.get('document')[:200]}\n"
     prompt = f"""Rank these movies by relevance to the search query.
 
 Query: "{query}"
