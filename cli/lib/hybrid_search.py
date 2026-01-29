@@ -1,6 +1,9 @@
-import os
 import json
+import os
 from typing import Optional
+
+from dotenv import load_dotenv
+from google import genai
 
 from .keyword_search import InvertedIndex
 from .query_enhancement import enhance_query
@@ -14,9 +17,6 @@ from .search_utils import (
     load_movies,
 )
 from .semantic_search import ChunkedSemanticSearch
-from dotenv import load_dotenv
-from google import genai
-from sentence_transformers import CrossEncoder
 
 load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
@@ -83,13 +83,13 @@ def normalize_search_results(results: list[dict]) -> list[dict]:
 
 
 def hybrid_score(
-    bm25_score: float, semantic_score: float, alpha: float = DEFAULT_ALPHA
+        bm25_score: float, semantic_score: float, alpha: float = DEFAULT_ALPHA
 ) -> float:
     return alpha * bm25_score + (1 - alpha) * semantic_score
 
 
 def combine_search_results(
-    bm25_results: list[dict], semantic_results: list[dict], alpha: float = DEFAULT_ALPHA
+        bm25_results: list[dict], semantic_results: list[dict], alpha: float = DEFAULT_ALPHA
 ) -> list[dict]:
     bm25_normalized = normalize_search_results(bm25_results)
     semantic_normalized = normalize_search_results(semantic_results)
@@ -141,7 +141,7 @@ def rrf_score(rank: int, k: int = RRF_K) -> float:
 
 
 def reciprocal_rank_fusion(
-    bm25_results: list[dict], semantic_results: list[dict], k: int = RRF_K
+        bm25_results: list[dict], semantic_results: list[dict], k: int = RRF_K
 ) -> list[dict]:
     rrf_scores = {}
 
@@ -194,7 +194,7 @@ def reciprocal_rank_fusion(
 
 
 def weighted_search_command(
-    query: str, alpha: float = DEFAULT_ALPHA, limit: int = DEFAULT_SEARCH_LIMIT
+        query: str, alpha: float = DEFAULT_ALPHA, limit: int = DEFAULT_SEARCH_LIMIT
 ) -> dict:
     movies = load_movies()
     searcher = HybridSearch(movies)
@@ -258,11 +258,11 @@ Return ONLY the scores in the same order you were given the documents. Return a 
 
 
 def rrf_search_command(
-    query: str,
-    k: int = RRF_K,
-    enhance: Optional[str] = None,
-    rerank_method: Optional[str] = None,
-    limit: int = DEFAULT_SEARCH_LIMIT,
+        query: str,
+        k: int = RRF_K,
+        enhance: Optional[str] = None,
+        rerank_method: Optional[str] = None,
+        limit: int = DEFAULT_SEARCH_LIMIT,
 ) -> dict:
     movies = load_movies()
     searcher = HybridSearch(movies)
