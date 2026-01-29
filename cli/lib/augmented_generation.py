@@ -114,3 +114,40 @@ def citations(query, limit):
         ],
         "citations": response.text or ""
     }
+
+def answer_question(query, limit):
+    result = rrf_search_command(
+        query, RRF_K, None, None, DEFAULT_SEARCH_LIMIT
+    )
+
+    formatted_results = result.get("results")
+
+    formatted_results = [
+        " ".join(f"{k}={v}" for k, v in d.items()) for d in formatted_results
+    ]
+
+    prompt = f"""Answer the user's question based on the provided movies that are available on Hoopla.
+
+    This should be tailored to Hoopla users. Hoopla is a movie streaming service.
+
+    Question: {query}
+
+    Documents:
+    {formatted_results}
+
+    Instructions:
+    - Answer questions directly and concisely
+    - Be casual and conversational
+    - Don't be cringe or hype-y
+    - Talk like a normal person would in a chat conversation
+
+    Answer:"""
+
+    response = client.models.generate_content(model=model, contents=prompt)
+
+    return {
+        "search_results": [
+            (m['title'], m['id']) for m in result.get("results")
+        ],
+        "answer": response.text or ""
+    }
