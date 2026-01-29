@@ -27,9 +27,12 @@ def main():
             if movie.get("title") in test["relevant_docs"]:
                 relevant += 1
 
+        precision = relevant / len(results.get("results"))
+        recall = relevant / len(test["relevant_docs"])
         run = {
-            "precision": relevant / len(results.get("results")),
-            "recall": relevant / len(test["relevant_docs"]),
+            "precision": precision,
+            "recall": recall,
+            "f1": 2 * (precision * recall) / (precision + recall),
             "query": test["query"],
             "retrieved": [m["title"] for m in results.get("results")],
             "relevant": test["relevant_docs"],
@@ -41,6 +44,7 @@ def main():
         print(f"  - Query: {run['query']}")
         print(f"    - Precision@{limit}: {run['precision']:.4f}")
         print(f"    - Recall@{limit}: {run['recall']:.4f}")
+        print(f"    - F1 Score: {run['f1']:.4f}")
         print(f"    - Retrieved: {', '.join(run['retrieved'])}")
         print(f"    - Relevant: {', '.join(run['relevant'])}")
 
