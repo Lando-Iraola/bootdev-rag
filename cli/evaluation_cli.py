@@ -28,7 +28,8 @@ def main():
                 relevant += 1
 
         run = {
-            "precision": (relevant / len(results.get("results"))),
+            "precision": relevant / len(results.get("results")),
+            "recall": relevant / len(test["relevant_docs"]),
             "query": test["query"],
             "retrieved": [m["title"] for m in results.get("results")],
             "relevant": test["relevant_docs"],
@@ -39,6 +40,7 @@ def main():
     for run in test_runs:
         print(f"  - Query: {run['query']}")
         print(f"    - Precision@{limit}: {run['precision']:.4f}")
+        print(f"    - Recall@{limit}: {run['recall']:.4f}")
         print(f"    - Retrieved: {', '.join(run['retrieved'])}")
         print(f"    - Relevant: {', '.join(run['relevant'])}")
 
