@@ -212,20 +212,24 @@ def rrf_search_command(
 ) -> dict:
     movies = load_movies()
     searcher = HybridSearch(movies)
-
+    
     original_query = query
+    print("Original query:", original_query)
     enhanced_query = None
     if enhance:
         enhanced_query = enhance_query(query, method=enhance)
         query = enhanced_query
+        print("Enhanced Query:", enhanced_query)
 
     search_limit = limit * SEARCH_MULTIPLIER if rerank_method else limit
     results = searcher.rrf_search(query, k, search_limit)
+    print("RRF results:",  [{key: value for key, value in item.items() if key != 'document'} for item in results])
 
     reranked = False
     if rerank_method:
         results = rerank(query, results, method=rerank_method, limit=limit)
         reranked = True
+        print("Reranked results:",  [{key: value for key, value in item.items() if key != 'document'} for item in results])
 
     return {
         "original_query": original_query,
