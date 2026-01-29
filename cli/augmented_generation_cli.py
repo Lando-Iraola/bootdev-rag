@@ -1,6 +1,6 @@
 import argparse
 
-from lib.augmented_generation import rag, summarize
+from lib.augmented_generation import rag, summarize, citations
 
 
 def main():
@@ -17,6 +17,14 @@ def main():
     )
     rag_summarize.add_argument("query", type=str, help="Search query")
     rag_summarize.add_argument(
+        "--limit", type=int, default=5, help="Number of results to return (default=5)"
+    )
+
+    rag_citations = subparsers.add_parser(
+        "citations", help="Summarize the contents of documents found and offer citations to them"
+    )
+    rag_citations.add_argument("query", type=str, help="Search query")
+    rag_citations.add_argument(
         "--limit", type=int, default=5, help="Number of results to return (default=5)"
     )
 
@@ -41,7 +49,16 @@ def main():
             print()
             print("LLM Summary:")
             print(result["summary"])
-
+        case "citations":
+            query = args.query
+            limit = args.limit
+            result = citations(query, limit)
+            print("Search Results:")
+            for i, r in enumerate(result["search_results"], 1):
+                print(f"  {i}. {r[0]} - ID: {r[1]} ")
+            print()
+            print("LLM Answer:")
+            print(result["citations"])
         case _:
             parser.print_help()
 
