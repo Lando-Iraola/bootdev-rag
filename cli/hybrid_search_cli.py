@@ -4,6 +4,7 @@ from lib.hybrid_search import (
     normalize_scores,
     rrf_search_command,
     weighted_search_command,
+    llm_evaluate,
 )
 
 
@@ -56,6 +57,9 @@ def main() -> None:
     )
     rrf_parser.add_argument(
         "--limit", type=int, default=5, help="Number of results to return (default=5)"
+    )
+    rrf_parser.add_argument(
+        "--evaluate", action="store_true", help="Evaluates Query"
     )
 
     args = parser.parse_args()
@@ -124,6 +128,11 @@ def main() -> None:
                     print(f"   {', '.join(ranks)}")
                 print(f"   {res['document'][:100]}...")
                 print()
+
+            if args.evaluate:
+                for i, res in enumerate(llm_evaluate(args.query, result), 1):
+                    print(f"{i}. {res['title']}: {res['evaluation']}/3")
+
         case _:
             parser.print_help()
 

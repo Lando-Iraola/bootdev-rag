@@ -1,4 +1,5 @@
 import os
+import json
 from typing import Optional
 
 from .keyword_search import InvertedIndex
@@ -13,6 +14,14 @@ from .search_utils import (
     load_movies,
 )
 from .semantic_search import ChunkedSemanticSearch
+from dotenv import load_dotenv
+from google import genai
+from sentence_transformers import CrossEncoder
+
+load_dotenv()
+api_key = os.getenv("GEMINI_API_KEY")
+client = genai.Client(api_key=api_key)
+model = "gemini-2.5-flash"
 
 
 class HybridSearch:
@@ -203,6 +212,51 @@ def weighted_search_command(
     }
 
 
+def llm_evaluate(query, results):
+    formatted_results = results.get("results")
+
+    formatted_results = [
+        " ".join(f"{k}={v}" for k, v in d.items()) for d in formatted_results
+    ]
+
+    prompt = f"""Rate how relevant each result is to this query on a 0-3 scale:
+
+Query: "{query}"
+
+Results:
+{chr(10).join(formatted_results)}
+
+Scale:
+- 3: Highly relevant
+- 2: Relevant
+- 1: Marginally relevant
+- 0: Not relevant
+
+Do NOT give any numbers out than 0, 1, 2, or 3.
+
+Return ONLY the scores in the same order you were given the documents. Return a valid JSON list, nothing else. For example:
+
+[2, 0, 3, 2, 0, 1]"""
+    response = client.models.generate_content(model=model, contents=prompt)
+    evaluated = response.text.strip()
+    if "json" in evaluated.lower():
+        evaluated = evaluated.lower().replace("json", "")
+    if "`" in evaluated:
+        evaluated = evaluated.replace("`", "")
+    if "\n" in evaluated:
+        evaluated = evaluated.replace("\n", "")
+    if " " in evaluated:
+        evaluated = evaluated.replace(" ", "")
+
+    evaluated = evaluated.strip()
+
+    evaluated = json.loads(evaluated)
+
+    for index, evaluation in enumerate(evaluated):
+        results['results'][index]["evaluation"] = evaluation
+    return results['results']
+
+
 def rrf_search_command(
     query: str,
     k: int = RRF_K,
@@ -212,7 +266,7 @@ def rrf_search_command(
 ) -> dict:
     movies = load_movies()
     searcher = HybridSearch(movies)
-    
+
     original_query = query
     print("Original query:", original_query)
     enhanced_query = None
@@ -223,13 +277,25 @@ def rrf_search_command(
 
     search_limit = limit * SEARCH_MULTIPLIER if rerank_method else limit
     results = searcher.rrf_search(query, k, search_limit)
-    print("RRF results:",  [{key: value for key, value in item.items() if key != 'document'} for item in results])
+    print(
+        "RRF results:",
+        [
+            {key: value for key, value in item.items() if key != "document"}
+            for item in results
+        ],
+    )
 
     reranked = False
     if rerank_method:
         results = rerank(query, results, method=rerank_method, limit=limit)
         reranked = True
-        print("Reranked results:",  [{key: value for key, value in item.items() if key != 'document'} for item in results])
+        print(
+            "Reranked results:",
+            [
+                {key: value for key, value in item.items() if key != "document"}
+                for item in results
+            ],
+        )
 
     return {
         "original_query": original_query,
